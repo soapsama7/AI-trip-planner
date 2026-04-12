@@ -1,0 +1,25 @@
+# ========== 后端 (Spring Boot / Maven) ==========
+**/target/
+
+# ========== 前端 (Node / Vite) ==========
+**/node_modules/
+**/dist/
+**/*.tsbuildinfo
+
+# ========== 环境变量（勿把真实密钥提交到 Git） ==========
+.env
+
+# ========== IDE ==========
+**/.idea/
+**/*.iml
+.vscode/
+
+# ========== 系统杂项 ==========
+.DS_Store
+Thumbs.db
+*.log
+
+# ========== 后端配置（敏感） ==========
+application.yml
+application-dev.yml
+application-prod.yml
