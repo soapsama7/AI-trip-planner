@@ -92,7 +92,10 @@ export type TripHistoryPageResponse = {
   records: TripHistoryItem[]
 }
 
-export type ApiMessageResponse = {
+/** 后端统一响应结构 Result<T>，拦截器解包用 */
+export type ApiResult<T> = {
+  code: number
   message: string
+  data: T
 }
 

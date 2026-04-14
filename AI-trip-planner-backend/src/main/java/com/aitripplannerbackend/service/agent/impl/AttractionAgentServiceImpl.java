@@ -51,11 +51,16 @@ public class AttractionAgentServiceImpl implements AttractionAgentService {
     @Override
     public AttractionStepResult recommendAttractions(TripGenerateRequest request) {
         ChatClient chatClient = chatClientBuilder.build();
-        String content = chatClient.prompt()
-                .system(ATTRACTION_PROMPT)
-                .user(userPrompt(request))
-                .call()
-                .content();
+        String content;
+        try {
+            content = chatClient.prompt()
+                    .system(ATTRACTION_PROMPT)
+                    .user(userPrompt(request))
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            throw new IllegalStateException("景点步骤调用模型失败，请检查模型服务或网络连接", e);
+        }
         try {
             return objectMapper.readValue(extractJson(content), AttractionStepResult.class);
         } catch (Exception e) {

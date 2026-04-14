@@ -1,5 +1,6 @@
 package com.aitripplannerbackend.controller;
 
+import com.aitripplannerbackend.dto.Result;
 import com.aitripplannerbackend.dto.TripGenerateRequest;
 import com.aitripplannerbackend.dto.TripHistoryPageResponse;
 import com.aitripplannerbackend.dto.TripPlanResult;
@@ -17,7 +18,6 @@ import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
-import java.util.Map;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.MediaType;
 import org.springframework.http.codec.ServerSentEvent;
@@ -72,13 +72,12 @@ public class TripController {
     @PostMapping("/plan")
     @Operation(summary = "启动旅行规划任务", description = "立即返回 taskId，不等待规划完成；前端用 taskId 订阅 SSE 或轮询状态。")
     @ApiResponses({
-            @ApiResponse(responseCode = "200", description = "任务成功创建",
-                    content = @Content(schema = @Schema(implementation = TaskStartResponse.class))),
+            @ApiResponse(responseCode = "200", description = "任务成功创建"),
             @ApiResponse(responseCode = "400", description = "请求体验证失败（城市、时间、预算等不符合校验）")
     })
-    public TaskStartResponse startTask(@Valid @RequestBody TripGenerateRequest request) {
+    public Result<TaskStartResponse> startTask(@Valid @RequestBody TripGenerateRequest request) {
         String taskId = tripPlannerService.startTask(request);
-        return TaskStartResponse.builder().taskId(taskId).build();
+        return Result.ok(TaskStartResponse.builder().taskId(taskId).build());
     }
 
     /**
@@ -119,12 +118,11 @@ public class TripController {
     @GetMapping("/tasks/{taskId}")
     @Operation(summary = "主动查询任务状态", description = "当SSE连接断开后，前端可以用这个接口轮询任务是否完成，若未完成则重新建立连接")
     @ApiResponses({
-            @ApiResponse(responseCode = "200",
-                    content = @Content(schema = @Schema(implementation = TaskStatusResponse.class)))
+            @ApiResponse(responseCode = "200")
     })
-    public TaskStatusResponse taskStatus(
+    public Result<TaskStatusResponse> taskStatus(
             @Parameter(description = "任务 ID") @PathVariable String taskId) {
-        return taskProgressService.getTaskStatus(taskId);
+        return Result.ok(taskProgressService.getTaskStatus(taskId));
     }
 
     /**
@@ -135,12 +133,11 @@ public class TripController {
      */
     @GetMapping("/history")
     @Operation(summary = "分页查询历史行程", description = "页码从 1 开始；未传参数时默认 page=1、size=5。")
-    @ApiResponses(@ApiResponse(responseCode = "200",
-            content = @Content(schema = @Schema(implementation = TripHistoryPageResponse.class))))
-    public TripHistoryPageResponse history(
+    @ApiResponses(@ApiResponse(responseCode = "200"))
+    public Result<TripHistoryPageResponse> history(
             @Parameter(description = "页码，从 1 开始") @RequestParam(defaultValue = "1") int page,
             @Parameter(description = "每页条数") @RequestParam(defaultValue = "5") int size) {
-        return tripHistoryService.listHistory(page, size);
+        return Result.ok(tripHistoryService.listHistory(page, size));
     }
 
 
@@ -150,9 +147,10 @@ public class TripController {
      */
     @PostMapping("/tasks/{taskId}/cancel")
     @Operation(summary = "取消任务", description = "标记取消，运行中的步骤会在检查点退出。")
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "后端已受理取消请求（无响应体）"))
-    public void cancelTask(@Parameter(description = "任务 ID") @PathVariable String taskId) {
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "后端已受理取消请求"))
+    public Result<String> cancelTask(@PathVariable String taskId) {
         tripPlannerService.cancelTask(taskId);
+        return Result.ok("取消请求已受理");
     }
 
     /**
@@ -160,16 +158,12 @@ public class TripController {
      */
     @PostMapping("/tasks/{taskId}/draft")
     @Operation(summary = "保存草稿", description = "编辑模式下覆盖 Redis 中的结果预览，不入库。待用户保存后再入库")
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "保存成功，返回提示文案",
-            content = @Content(schema = @Schema(example = "{\"message\":\"草稿保存成功\"}"))))
-    public Map<String, String> saveDraft(
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "保存成功"))
+    public Result<String> saveDraft(
             @Parameter(description = "任务 ID") @PathVariable String taskId,
-            @io.swagger.v3.oas.annotations.parameters.RequestBody(description = "前端编辑后的完整行程 JSON",
-                    required = true,
-                    content = @Content(schema = @Schema(implementation = TripPlanResult.class)))
             @RequestBody TripPlanResult planResult) {
         tripPlannerService.saveDraft(taskId, planResult);
-        return Map.of("message", "草稿保存成功");
+        return Result.ok("草稿保存成功");
     }
 
     /**
@@ -178,14 +172,12 @@ public class TripController {
      */
     @PostMapping("/tasks/{taskId}/save")
     @Operation(summary = "正式保存行程", description = "写入数据库；首次保存后该 taskId 对应行程不可再编辑。")
-    @ApiResponses(@ApiResponse(responseCode = "200", description = "保存结果说明",
-            content = @Content(schema = @Schema(example = "{\"message\":\"行程已保存，后续不可修改\"}"))))
-    public Map<String, String> saveTrip(@Parameter(description = "任务 ID") @PathVariable String taskId) {
+    @ApiResponses(@ApiResponse(responseCode = "200", description = "保存结果说明"))
+    public Result<String> saveTrip(@PathVariable String taskId) {
         boolean firstSave = tripPlannerService.saveTrip(taskId);
         if (firstSave) {
-            return Map.of("message", "行程已保存，后续不可修改");
+            return Result.ok("行程已保存，后续不可修改");
         }
-        return Map.of("message", "该行程已保存成功，无需重复保存");
+        return Result.fail(400,"该行程已保存过，无需重复保存");
     }
-
 }

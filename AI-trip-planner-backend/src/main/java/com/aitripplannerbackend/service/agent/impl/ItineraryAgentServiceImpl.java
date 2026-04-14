@@ -66,11 +66,16 @@ public class ItineraryAgentServiceImpl implements ItineraryAgentService {
                                            WeatherStepResult weather,
                                            AttractionStepResult attractions) {
         ChatClient chatClient = chatClientBuilder.build();
-        String content = chatClient.prompt()
-                .system(ITINERARY_PROMPT)
-                .user(userPrompt(objectMapper,request, weather, attractions))
-                .call()
-                .content();
+        String content;
+        try {
+            content = chatClient.prompt()
+                    .system(ITINERARY_PROMPT)
+                    .user(userPrompt(objectMapper,request, weather, attractions))
+                    .call()
+                    .content();
+        } catch (Exception e) {
+            throw new IllegalStateException("行程步骤调用模型失败，请检查模型服务或网络连接", e);
+        }
         try {
             TripPlanResult plan = objectMapper.readValue(extractJson(content), TripPlanResult.class);
             plan.setBudget(request.getBudget().intValue());

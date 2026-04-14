@@ -1,6 +1,6 @@
 import axios from 'axios'
 import type {
-  ApiMessageResponse,
+  ApiResult,
   TaskStartResponse,
   TaskStatusResponse,
   TripGenerateRequest,
@@ -17,6 +17,29 @@ export const apiClient = axios.create({
   headers: { 'Content-Type': 'application/json' }
 })
 
+/**
+ * 响应拦截器：自动解包后端 Result<T> 结构。
+ * 成功时提取 data 字段；失败时统一抛出 Error(message)。
+ */
+apiClient.interceptors.response.use(
+  (res) => {
+    const body = res.data as ApiResult<unknown>
+    if (body && typeof body === 'object' && 'code' in body) {
+      if (body.code === 200) {
+        res.data = body.data
+      } else {
+        return Promise.reject(new Error(body.message || '请求失败'))
+      }
+    }
+    return res
+  },
+  (error) => {
+    const body = error?.response?.data
+    const msg = body?.message || error.message || '网络错误'
+    return Promise.reject(new Error(msg))
+  }
+)
+
 export async function startTripTask(payload: TripGenerateRequest): Promise<TaskStartResponse> {
   const res = await apiClient.post<TaskStartResponse>('/api/trips/plan', payload)
   return res.data
@@ -27,8 +50,9 @@ export async function queryTaskStatus(taskId: string): Promise<TaskStatusRespons
   return res.data
 }
 
-export async function cancelTripTask(taskId: string): Promise<void> {
-  await apiClient.post(`/api/trips/tasks/${encodeURIComponent(taskId)}/cancel`)
+export async function cancelTripTask(taskId: string): Promise<string> {
+  const res = await apiClient.post<string>(`/api/trips/tasks/${encodeURIComponent(taskId)}/cancel`)
+  return res.data
 }
 
 export async function queryTripHistory(page = 1, size = 10): Promise<TripHistoryPageResponse> {
@@ -38,13 +62,13 @@ export async function queryTripHistory(page = 1, size = 10): Promise<TripHistory
   return res.data
 }
 
-export async function saveTripDraft(taskId: string, payload: TripPlanResult): Promise<ApiMessageResponse> {
-  const res = await apiClient.post<ApiMessageResponse>(`/api/trips/tasks/${encodeURIComponent(taskId)}/draft`, payload)
+export async function saveTripDraft(taskId: string, payload: TripPlanResult): Promise<string> {
+  const res = await apiClient.post<string>(`/api/trips/tasks/${encodeURIComponent(taskId)}/draft`, payload)
   return res.data
 }
 
-export async function saveTrip(taskId: string): Promise<ApiMessageResponse> {
-  const res = await apiClient.post<ApiMessageResponse>(`/api/trips/tasks/${encodeURIComponent(taskId)}/save`)
+export async function saveTrip(taskId: string): Promise<string> {
+  const res = await apiClient.post<string>(`/api/trips/tasks/${encodeURIComponent(taskId)}/save`)
   return res.data
 }
 

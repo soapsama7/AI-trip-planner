@@ -95,6 +95,11 @@ public class TripPlannerServiceImpl implements TripPlannerService {
         }
         String taskId = UUID.randomUUID().toString();
         cacheRequest(taskId, request);
+        /*
+            Schedulers.boundedElastic()返回一个 线程池（Scheduler）
+            专门用于阻塞任务、线程数有上限（bounded）且会自动扩容（elastic）
+            .schedule(...)提交任务执行
+         */
         Schedulers.boundedElastic().schedule(() -> runTask(taskId, request, budgetCheck));
         return taskId;
     }
@@ -160,19 +165,20 @@ public class TripPlannerServiceImpl implements TripPlannerService {
         try {
             cacheResult(taskId, planResult, 100);
         } catch (JsonProcessingException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "草稿内容格式不正确");
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "草稿内容格式不正确，请重试");
         }
     }
 
     @Override
     public boolean saveTrip(String taskId) {
-        // 做一下二次校验，防止重复写入数据库
+        // 做一下二次校验，防止重复写入数据库，保障程序健壮性
         if ("1".equals(stringRedisTemplate.opsForValue().get(SAVED_CACHE_PREFIX + taskId))
                 || tripRecordMapper.countByTaskId(taskId) > 0) {
             return false;
         }
         String requestJson = stringRedisTemplate.opsForValue().get(REQUEST_CACHE_PREFIX + taskId);
         String planJson = stringRedisTemplate.opsForValue().get(RESULT_CACHE_PREFIX + taskId);
+        // 一样是做二次校验
         if (requestJson == null || requestJson.isBlank() || planJson == null || planJson.isBlank()) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "未找到可保存的行程结果，请先完成行程生成");
         }

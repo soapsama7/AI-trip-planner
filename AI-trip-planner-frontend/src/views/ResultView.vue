@@ -239,14 +239,14 @@ async function saveDraftAndExit() {
       day.estimatedCost = dayCost + stayCost
       return sum + day.estimatedCost
     }, 0)
-    await saveTripDraft(taskId, payload)
+    const msg = await saveTripDraft(taskId, payload)
     result.value = payload
     sourceResult.value = deepClone(payload)
     sessionStorage.setItem(`tripResult:${taskId}`, JSON.stringify(payload))
-    message.success('草稿保存成功')
+    message.success(msg)
     editMode.value = false
   } catch (e: any) {
-    message.error(e?.response?.data?.message || e?.message || '保存草稿失败')
+    message.error(e?.message || '保存草稿失败')
   } finally {
     draftLoading.value = false
   }
@@ -255,13 +255,13 @@ async function saveDraftAndExit() {
 async function handleSaveTrip() {
   saveLoading.value = true
   try {
-    const res = await saveTrip(taskId)
-    message.success(res.message || '行程已保存，后续不可修改')
+    const msg = await saveTrip(taskId)
+    message.success(msg)
     isLocked.value = true
     editMode.value = false
     localStorage.setItem(lockKey, '1')
   } catch (e: any) {
-    message.error(e?.response?.data?.message || e?.message || '保存行程失败')
+    message.error(e?.message || '保存行程失败')
   } finally {
     saveLoading.value = false
   }

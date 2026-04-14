@@ -154,6 +154,9 @@ public class WeatherAgentServiceImpl implements WeatherAgentService {
                 .retrieve()
                 .bodyToMono(DailyForecastResponse.class)
                 .block();
+        if (resp == null || resp.daily == null || resp.daily.isEmpty()) {
+            throw new IllegalStateException("天气服务返回空数据，请稍后重试");
+        }
         return resp.daily;
     }
 }

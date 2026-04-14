@@ -319,7 +319,7 @@ const handleSubmit = async () => {
     localStorage.setItem(ACTIVE_TASK_ID_KEY, taskId)
     attachSse(taskId)
   } catch (e: any) {
-    const raw = e?.response?.data?.message || e?.message || '创建任务失败'
+    const raw = e?.message || '创建任务失败'
     message.error(humanizeBudgetRejectError(raw))
     loading.value = false
   }
@@ -402,8 +402,8 @@ async function handleCancelPlanning() {
     return
   }
   try {
-    await cancelTripTask(taskId)
-    message.success('已提交取消请求')
+    const msg = await cancelTripTask(taskId)
+    message.success(msg)
   } catch (e: any) {
     message.error(e?.message || '取消失败，请稍后重试')
     return
