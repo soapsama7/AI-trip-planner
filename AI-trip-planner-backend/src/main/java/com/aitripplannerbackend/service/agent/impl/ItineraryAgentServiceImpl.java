@@ -24,8 +24,7 @@ import org.springframework.web.reactive.function.client.WebClient;
 
 import static com.aitripplannerbackend.service.agent.prompt.ItineraryPrompt.ITINERARY_PROMPT;
 import static com.aitripplannerbackend.service.agent.prompt.ItineraryPrompt.userPrompt;
-import static com.aitripplannerbackend.utils.contents.systemContents.ACCOMMODATION_SHARE_OF_TOTAL_BUDGET;
-import static com.aitripplannerbackend.utils.contents.systemContents.MIN_NIGHTLY_PRICE;
+import static com.aitripplannerbackend.utils.contents.systemContents.*;
 
 /**
  * 行程规划 Agent 服务实现 —— 调用 LLM 生成完整的每日行程。
@@ -48,9 +47,9 @@ public class ItineraryAgentServiceImpl implements ItineraryAgentService {
 
     private final ChatClient.Builder chatClientBuilder;
     private final ObjectMapper objectMapper;
+
     @Qualifier("amapWebClient")
     private final WebClient amapWebClient;
-
     @Value("${amap.web-key:}")
     private String amapWebKey;
 
@@ -79,8 +78,10 @@ public class ItineraryAgentServiceImpl implements ItineraryAgentService {
         try {
             TripPlanResult plan = objectMapper.readValue(extractJson(content), TripPlanResult.class);
             plan.setBudget(request.getBudget().intValue());
+            capUnreasonableExpectedCosts(plan);
             enrichAccommodation(request, plan);
             addAccommodationToTotalCost(plan);
+            plan.setBudgetBreakdown(buildBudgetBreakdown(request, plan));
             if (estimateTripDays(request.getTravelTime()) <= 1) {
                 plan.setAccommodationNote("因为旅行只有一天（视为当日往返），因此未规划住宿。");
             }
@@ -124,6 +125,75 @@ public class ItineraryAgentServiceImpl implements ItineraryAgentService {
             grand += dailyTotal;
         }
         plan.setTotalEstimatedCost(grand);
+    }
+
+    /**
+     * 对 LLM 输出的每个 planItem.expectedCost 做合理性修正。
+     * 单项活动花费（门票+餐饮+市内交通）超过上限时强制截断，
+     * 防止 LLM 为凑预算而虚增某一项。
+     */
+    private void capUnreasonableExpectedCosts(TripPlanResult plan) {
+        if (plan == null || plan.getDailyPlans() == null) {
+            return;
+        }
+        for (TripPlanResult.DailyPlan day : plan.getDailyPlans()) {
+            if (day.getPlanItems() == null) {
+                continue;
+            }
+            for (TripPlanResult.PlanItem item : day.getPlanItems()) {
+                if (item.getExpectedCost() != null && item.getExpectedCost() > SINGLE_ITEM_COST_CAP) {
+                    log.warn("单项花费异常偏高，已修正: place={}, original={}, capped={}",
+                            item.getPlace(), item.getExpectedCost(), SINGLE_ITEM_COST_CAP);
+                    item.setExpectedCost(SINGLE_ITEM_COST_CAP);
+                }
+            }
+        }
+    }
+
+    /**
+     * 构建预算分配明细，向用户透明展示总预算的拆分方式。
+     * 必须在 enrichAccommodation + addAccommodationToTotalCost 之后调用，
+     * 因为需要读取已计算好的住宿价格和重算后的 estimatedCost。
+     */
+    private TripPlanResult.BudgetBreakdown buildBudgetBreakdown(TripGenerateRequest request,
+                                                                 TripPlanResult plan) {
+        int total = request.getBudget() == null ? 0 : request.getBudget().intValue();
+        int tripDays = estimateTripDays(request.getTravelTime());
+        boolean isDayTrip = tripDays <= 1;
+
+        float accommRatio = isDayTrip ? 0f : ACCOMMODATION_SHARE_OF_TOTAL_BUDGET;
+        float actRatio = 1f - accommRatio;
+
+        int accommBudget = Math.round(total * accommRatio);
+        int actBudget = total - accommBudget;
+
+        int actEstimated = 0;
+        int accommEstimated = 0;
+        if (plan.getDailyPlans() != null) {
+            for (TripPlanResult.DailyPlan day : plan.getDailyPlans()) {
+                actEstimated += sumExpectedCostOfPlanItems(day);
+                if (day.getStay() != null && day.getStay().getPricePerNight() != null) {
+                    accommEstimated += day.getStay().getPricePerNight();
+                }
+            }
+        }
+
+        String explanation = isDayTrip
+                ? String.format("本次为当日往返，全部预算 %d 元均用于活动（门票、餐饮、市内交通），无需住宿。", total)
+                : String.format("总预算 %d 元中，约 %.0f%%（%d 元）用于活动（门票、餐饮、市内交通），"
+                                + "约 %.0f%%（%d 元）用于住宿，剩余部分可灵活支配。",
+                        total, actRatio * 100, actBudget, accommRatio * 100, accommBudget);
+
+        return TripPlanResult.BudgetBreakdown.builder()
+                .totalBudget(total)
+                .activityRatio(actRatio)
+                .activityBudget(actBudget)
+                .activityEstimated(actEstimated)
+                .accommodationRatio(accommRatio)
+                .accommodationBudget(accommBudget)
+                .accommodationEstimated(accommEstimated)
+                .explanation(explanation)
+                .build();
     }
 
     /**

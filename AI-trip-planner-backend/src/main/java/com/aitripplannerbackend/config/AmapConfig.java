@@ -14,6 +14,7 @@ public class AmapConfig {
 
     @Bean(name = "amapWebClient")
     public WebClient amapWebClient(@Value("${amap.base-url}") String baseUrl) {
+
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
                 .responseTimeout(Duration.ofSeconds(30))

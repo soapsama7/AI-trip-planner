@@ -36,6 +36,35 @@
               <span class="info-label">📊 预估总花费</span>
               <span class="info-value">¥{{ result.totalEstimatedCost }}</span>
             </div>
+            <div v-if="result.budgetBreakdown" class="budget-breakdown">
+              <div class="breakdown-title">💡 预算分配说明</div>
+              <div class="breakdown-explain">{{ result.budgetBreakdown.explanation }}</div>
+              <div class="breakdown-bars">
+                <div class="bar-group">
+                  <div class="bar-label">
+                    <span>🎯 活动（门票/餐饮/交通）</span>
+                    <span>¥{{ result.budgetBreakdown.activityEstimated }} / ¥{{ result.budgetBreakdown.activityBudget }}</span>
+                  </div>
+                  <a-progress
+                    :percent="Math.min(Math.round(result.budgetBreakdown.activityEstimated / result.budgetBreakdown.activityBudget * 100), 100)"
+                    :stroke-color="result.budgetBreakdown.activityEstimated > result.budgetBreakdown.activityBudget ? '#ff4d4f' : '#52c41a'"
+                    :show-info="true"
+                  />
+                </div>
+                <div v-if="result.budgetBreakdown.accommodationRatio > 0" class="bar-group">
+                  <div class="bar-label">
+                    <span>🏨 住宿</span>
+                    <span>¥{{ result.budgetBreakdown.accommodationEstimated }} / ¥{{ result.budgetBreakdown.accommodationBudget }}</span>
+                  </div>
+                  <a-progress
+                    :percent="Math.min(Math.round(result.budgetBreakdown.accommodationEstimated / result.budgetBreakdown.accommodationBudget * 100), 100)"
+                    :stroke-color="result.budgetBreakdown.accommodationEstimated > result.budgetBreakdown.accommodationBudget ? '#ff4d4f' : '#1890ff'"
+                    :show-info="true"
+                  />
+                </div>
+              </div>
+            </div>
+
             <div v-if="result.accommodationNote || result.budgetWarning || isOverBudget" class="budget-alerts">
               <a-alert v-if="result.accommodationNote" type="info" show-icon :message="result.accommodationNote" />
               <a-alert v-if="result.budgetWarning" type="warning" show-icon :message="result.budgetWarning" />
@@ -233,12 +262,20 @@ async function saveDraftAndExit() {
   draftLoading.value = true
   try {
     const payload = deepClone(result.value)
+    let actTotal = 0
+    let accTotal = 0
     payload.totalEstimatedCost = payload.dailyPlans.reduce((sum, day) => {
       const dayCost = day.planItems.reduce((s, p) => s + Number(p.expectedCost || 0), 0)
       const stayCost = day.stay?.pricePerNight ?? 0
+      actTotal += dayCost
+      accTotal += stayCost
       day.estimatedCost = dayCost + stayCost
       return sum + day.estimatedCost
     }, 0)
+    if (payload.budgetBreakdown) {
+      payload.budgetBreakdown.activityEstimated = actTotal
+      payload.budgetBreakdown.accommodationEstimated = accTotal
+    }
     const msg = await saveTripDraft(taskId, payload)
     result.value = payload
     sourceResult.value = deepClone(payload)
@@ -312,6 +349,11 @@ function buildTripExportHtml() {
       <div style="margin-bottom:8px;">时间：${r.travelTime}</div>
       <div style="margin-bottom:8px;">预算：¥${r.budget}</div>
       <div style="margin-bottom:8px;">预估总花费：¥${r.totalEstimatedCost}</div>
+      ${r.budgetBreakdown ? `<div style="margin:10px 0;padding:12px;background:linear-gradient(135deg,#f0f5ff,#e6fffb);border:1px solid #d6e4ff;border-radius:8px;line-height:1.8;">
+        <div style="font-weight:700;color:#1890ff;margin-bottom:4px;">💡 预算分配说明</div>
+        <div style="font-size:13px;color:#555;">${r.budgetBreakdown.explanation}</div>
+        <div style="margin-top:6px;font-size:13px;color:#444;">🎯 活动：¥${r.budgetBreakdown.activityEstimated} / ¥${r.budgetBreakdown.activityBudget}${r.budgetBreakdown.accommodationRatio > 0 ? ` ｜ 🏨 住宿：¥${r.budgetBreakdown.accommodationEstimated} / ¥${r.budgetBreakdown.accommodationBudget}` : ''}</div>
+      </div>` : ''}
       ${accNoteHtml}${warnHtml}${overHtml}
       <div style="margin-bottom:12px;line-height:1.6;">总结：${r.summary || ''}</div>
       ${daysHtml}
@@ -424,6 +466,47 @@ async function exportAsPdf() {
   font-size: 15px;
   color: #333;
   line-height: 1.6;
+}
+
+.budget-breakdown {
+  grid-column: 1 / -1;
+  background: linear-gradient(135deg, #f0f5ff 0%, #e6fffb 100%);
+  border: 1px solid #d6e4ff;
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.breakdown-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #1890ff;
+  margin-bottom: 6px;
+}
+
+.breakdown-explain {
+  font-size: 13px;
+  color: #555;
+  line-height: 1.6;
+  margin-bottom: 12px;
+}
+
+.breakdown-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.bar-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.bar-label {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: #444;
 }
 
 .budget-alerts {

@@ -9,6 +9,8 @@ import com.aitripplannerbackend.service.agent.WeatherAgentService;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+
+import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
@@ -16,22 +18,15 @@ import org.springframework.web.reactive.function.client.WebClient;
 import static com.aitripplannerbackend.utils.contents.dtoContents.DAY_FMT;
 
 @Service
+@RequiredArgsConstructor
 public class WeatherAgentServiceImpl implements WeatherAgentService {
 
     /**
      * 和风天气专用的 HTTP 客户端，在 QWeatherConfig 中创建的 Bean。
      * 已经配好了 baseUrl（和风的 API Host）和请求头（API Key），
      */
+    @Qualifier("qweatherWebClient")
     private final WebClient qweatherWebClient;
-
-    /**
-     * 构造函数注入。
-     * @Qualifier("qweatherWebClient") 的作用：项目里有多个 WebClient Bean
-     * （比如 LLM 用的也有一个），加 @Qualifier 指定要注入名字叫 "qweatherWebClient" 的那个。
-     */
-    public WeatherAgentServiceImpl(@Qualifier("qweatherWebClient") WebClient qweatherWebClient) {
-        this.qweatherWebClient = qweatherWebClient;
-    }
 
     @Override
     public WeatherStepResult generateWeather(TripGenerateRequest request) {

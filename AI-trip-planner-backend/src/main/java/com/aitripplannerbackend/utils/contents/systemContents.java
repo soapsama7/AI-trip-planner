@@ -26,4 +26,9 @@ public class systemContents {
     public static final int WARN_PER_DAY = 300;
 
     public static final float ACCOMMODATION_SHARE_OF_TOTAL_BUDGET = 0.35f;
+
+    /**
+     * 单项活动的预算上限（可调整），防止LLM胡乱输出
+     */
+    public static final int SINGLE_ITEM_COST_CAP = 500;
 }

@@ -7,7 +7,7 @@ import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
 /**
- * 全局异常处理器 —— 所有异常统一返回 {@link Result} 格式。
+ * 全局异常处理器 —— 所有异常统一返回 {@link Result} 格式。比如：
  *
  * <pre>{@code { "code": 400, "message": "具体错误信息", "data": null }}</pre>
  *

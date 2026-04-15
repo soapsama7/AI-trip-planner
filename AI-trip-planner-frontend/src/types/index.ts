@@ -8,6 +8,17 @@ export type TaskStartResponse = {
   taskId: string
 }
 
+export type BudgetBreakdown = {
+  totalBudget: number
+  activityRatio: number
+  activityBudget: number
+  activityEstimated: number
+  accommodationRatio: number
+  accommodationBudget: number
+  accommodationEstimated: number
+  explanation: string
+}
+
 export type TripPlanResult = {
   city: string
   travelTime: string
@@ -20,6 +31,8 @@ export type TripPlanResult = {
   budgetWarning?: string | null
   /** 如单日往返未安排住宿时的说明 */
   accommodationNote?: string | null
+  /** 预算分配明细，由后端计算填充 */
+  budgetBreakdown?: BudgetBreakdown | null
 }
 
 export type DailyPlan = {

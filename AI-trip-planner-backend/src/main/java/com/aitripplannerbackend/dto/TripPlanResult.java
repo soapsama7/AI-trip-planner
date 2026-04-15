@@ -52,6 +52,39 @@ public class TripPlanResult {
      */
     private String accommodationNote;
 
+    /** 预算分配明细，由服务端计算填充（非 LLM 生成） */
+    private BudgetBreakdown budgetBreakdown;
+
+    /**
+     * 预算分配明细：向用户透明地展示总预算如何拆分为"活动"与"住宿"两部分。
+     * 由服务端根据 {@code ACCOMMODATION_SHARE_OF_TOTAL_BUDGET} 等常量计算，非 LLM 输出。
+     */
+    @Data
+    @NoArgsConstructor
+    @AllArgsConstructor
+    @Builder
+    public static class BudgetBreakdown {
+        /** 用户总预算（元） */
+        private Integer totalBudget;
+
+        /** 活动预算占比（如 0.65） */
+        private Float activityRatio;
+        /** 活动预算金额（元）= totalBudget × activityRatio */
+        private Integer activityBudget;
+        /** 活动实际预估花费（元）：所有 planItem.expectedCost 之和 */
+        private Integer activityEstimated;
+
+        /** 住宿预算占比（如 0.35） */
+        private Float accommodationRatio;
+        /** 住宿预算金额（元）= totalBudget × accommodationRatio */
+        private Integer accommodationBudget;
+        /** 住宿实际预估花费（元）：所有住宿夜 pricePerNight 之和 */
+        private Integer accommodationEstimated;
+
+        /** 面向用户的一句话说明 */
+        private String explanation;
+    }
+
     /**
      * 单日行程计划。
      * 每天有一个主题（如"文化探索日"）、预估花费、以及具体的时段安排。

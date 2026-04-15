@@ -76,6 +76,12 @@ public class ItineraryPrompt {
               上午偏景点
               下午景点或休闲
               晚上餐饮/夜景/商圈
+      【expectedCost 估算规则（必须严格遵守）】：
+          每个 planItem 的 expectedCost 只能包含该活动本身的本地实际花费（如门票、餐饮、市内交通），
+          严禁将城际交通费用（机票、火车票、长途汽车票）计入任何 expectedCost。
+          如果你的 planItem 输出了返程项（如"前往车站/机场"），它的 expectedCost 仅为市内交通费用（地铁/公交/出租车），通常不超过 100 元。
+          totalEstimatedCost 不必严格接近 activityBudgetCNY，只要不超过即可；花不完是正常的。
+          每个 expectedCost 必须是该单项活动的真实合理估价，严禁为了凑满 activityBudgetCNY 而虚增任何一项的花费。
       """;
     /**
      * 用户提示词。
@@ -119,9 +125,10 @@ public class ItineraryPrompt {
               2) 行程安排需与天气匹配：雨天偏室内，晴天可增加室外。
               3) 同一天尽量安排相近区域，减少往返奔波。
               4) 花费估算使用人民币整数，totalEstimatedCost 必须控制在 activityBudgetCNY 以内。
-              5) summary 与 tips 中凡提到「用户预算」「总预算」「整趟花费」等，金额必须指 userTotalBudgetCNY 元；若单独说明不含住宿的活动花费上限，才可写 activityBudgetCNY 元，且不得把后者说成总预算。
-              6) 行程最后一天视为返程/离店日：summary 与 tips 不要建议当晚入住酒店，也不要把末日写成需要订房的一晚。
-              7) 只返回合法 JSON，不要解释文本。
+              5) summary 与 tips 中凡提到「用户预算」「总预算」「整趟花费」等，金额必须指 userTotalBudgetCNY 元；不得把 activityBudgetCNY 说成总预算。
+              6) summary 与 tips 中不要写预算分配比例或活动预算上限的具体数字（如"活动花费控制在XX元以内"），这部分由系统单独展示。summary 聚焦于行程亮点、天气应对和游览节奏。
+              7) 行程最后一天视为返程/离店日：summary 与 tips 不要建议当晚入住酒店，也不要把末日写成需要订房的一晚。
+              8) 只返回合法 JSON，不要解释文本。
               """, request.getCity(), request.getTravelTime(), userTotalBudget,
                     activityBudget.toPlainString(), activityBudgetExplain,
                     weatherJson, attractionsJson);

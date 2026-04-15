@@ -57,8 +57,7 @@ public class AIRestClientConfig {
     @Bean
     @Primary
     public RestClient.Builder llmRestClientBuilder() {
-        ClientHttpRequestFactory requestFactory = new ReactorClientHttpRequestFactory(llmHttpClient());
-        return RestClient.builder().requestFactory(requestFactory);
+        return RestClient.builder().requestFactory(new ReactorClientHttpRequestFactory(llmHttpClient()));
     }
 
     /**

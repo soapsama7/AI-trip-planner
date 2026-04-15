@@ -20,7 +20,7 @@ import org.springframework.data.redis.listener.ReactiveRedisMessageListenerConta
  * <h3>为什么用"响应式"版本？</h3>
  * 本项目用的是 Spring WebFlux（响应式框架），SSE 返回的是 {@code Flux<ServerSentEvent>}。
  * 响应式的 Redis 监听器可以直接返回 Flux，和 WebFlux 的流式模型完美配合。
- * 如果用传统的（阻塞式）Redis 监听器，就得自己做线程转换，麻烦很多。
+ * 如果用传统的阻塞式Redis 监听器 （RedisMessageListenerContainer），就得自己做线程转换，麻烦很多。
  *
  * <h3>Bean 说明</h3>
  * <ul>

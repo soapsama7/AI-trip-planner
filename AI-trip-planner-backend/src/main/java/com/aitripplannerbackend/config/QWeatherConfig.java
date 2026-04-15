@@ -24,12 +24,12 @@ public class QWeatherConfig {
             @Value("${qweather.api-host}") String apiHost,
             @Value("${qweather.api-key}") String apiKey) {
 
+        String host = apiHost.trim();
+
         HttpClient httpClient = HttpClient.create()
                 .option(ChannelOption.CONNECT_TIMEOUT_MILLIS, 10_000)
-                .responseTimeout(Duration.ofSeconds(45))
+                .responseTimeout(Duration.ofMinutes(1))
                 .compress(true);
-
-        String host = apiHost.trim();
 
         return WebClient.builder()
                 .baseUrl("https://" + host)
